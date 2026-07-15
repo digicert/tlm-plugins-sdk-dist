@@ -3,11 +3,13 @@
 Public distribution repository for the **DigiCert Trust Lifecycle Manager (TLM) Plugins SDK**.
 
 This repository is the **package host**, not the source. It publishes the SDK's Maven
-artifacts (JARs and POMs) so that you can add the SDK as a dependency and build your own
-TLM plugins. Use it to pull a released SDK version into your plugin project, then package
-and upload the result to Trust Lifecycle Manager.
+artifacts (JARs and POMs) as a **static Maven repository on GitHub Pages** so that you can
+add the SDK as a dependency and build your own TLM plugins. Use it to pull a released SDK
+version into your plugin project, then package and upload the result to Trust Lifecycle Manager.
 
-- **You are here:** the SDK distribution (Maven packages).
+**Maven repository (GitHub Pages):** <https://digicert.github.io/tlm-plugins-sdk-dist/>
+
+- **You are here:** the SDK distribution (a Maven repository hosted on GitHub Pages).
 - **Where you build:** your own plugin project, typically started from an
   [official example](#examples).
 - **Where you deploy:** Trust Lifecycle Manager → **Integrations → Plugins**.
@@ -23,9 +25,8 @@ and upload the result to Trust Lifecycle Manager.
 - [Supported plugin workflows](#supported-plugin-workflows)
 - [Prerequisites](#prerequisites)
 - [Consume the SDK](#consume-the-sdk)
-  - [1. Authenticate to GitHub Packages](#1-authenticate-to-github-packages)
-  - [2. Configure `settings.xml`](#2-configure-settingsxml)
-  - [3. Declare the repository and dependency](#3-declare-the-repository-and-dependency)
+  - [1. Declare the repository](#1-declare-the-repository)
+  - [2. Add the SDK dependency](#2-add-the-sdk-dependency)
 - [Build and package a plugin](#build-and-package-a-plugin)
 - [Deploy to Trust Lifecycle Manager](#deploy-to-trust-lifecycle-manager)
 - [Examples](#examples)
@@ -42,7 +43,7 @@ implements one workflow type, builds to a distributable ZIP, and is uploaded to 
 
 ```mermaid
 flowchart TD
-    SDK["tlm-plugins-sdk-dist<br/><i>(this repo — SDK Maven packages)</i>"]
+    SDK["tlm-plugins-sdk-dist<br/><i>(this repo — Maven repo on GitHub Pages)</i>"]
 
     subgraph Examples["Plugin projects (start from tlm-plugin-examples)"]
         CD["Certificate delivery plugin<br/><code>AbstractAutomationWorkflow</code>"]
@@ -91,78 +92,55 @@ References:
 
 ## Prerequisites
 
-- **Java** 11 or later (JDK) and **Apache Maven** 3.6+.
-- A **GitHub account** with a **personal access token (classic)** that has the
-  `read:packages` scope — required to download packages from GitHub Packages.
+- **Java** 17 or later (JDK) and **Apache Maven** 3.6+.
 - Access to a **Trust Lifecycle Manager** account to upload and activate the finished plugin.
+
+No GitHub account or access token is required — the SDK is served from a public GitHub Pages
+Maven repository.
 
 ---
 
 ## Consume the SDK
 
-The SDK is distributed via **GitHub Packages** (Apache Maven registry). Consuming it takes
-three steps: authenticate, point Maven at the registry, and declare the dependency.
+The SDK is distributed as a **static Maven repository hosted on GitHub Pages**. It requires
+**no authentication** — no GitHub account, personal access token, or `settings.xml` entry.
+Consuming it takes two steps: point Maven at the GitHub Pages URL, then declare the dependency.
 
-### 1. Authenticate to GitHub Packages
+**Maven repository URL:** `https://digicert.github.io/tlm-plugins-sdk-dist/`
 
-GitHub Packages requires authentication even for public packages. Create a
-[personal access token (classic)](https://github.com/settings/tokens) with the
-`read:packages` scope and keep it handy for the next step.
+### 1. Declare the repository
 
-> Never commit your token. Prefer an environment variable and reference it from
-> `settings.xml`, or store the token in an encrypted CI secret.
-
-### 2. Configure `settings.xml`
-
-Add a matching `<server>` entry to your Maven `settings.xml` (usually `~/.m2/settings.xml`).
-The `<id>` must match the repository `<id>` you declare in the next step.
-
-```xml
-<settings>
-  <servers>
-    <server>
-      <id>github-tlm-sdk</id>
-      <username>YOUR_GITHUB_USERNAME</username>
-      <password>${env.GITHUB_TOKEN}</password>
-    </server>
-  </servers>
-</settings>
-```
-
-Set the token in your environment before building:
-
-```bash
-export GITHUB_TOKEN=ghp_your_read_packages_token   # macOS/Linux
-```
-
-```powershell
-$env:GITHUB_TOKEN = "ghp_your_read_packages_token"  # Windows PowerShell
-```
-
-### 3. Declare the repository and dependency
-
-In your plugin project's `pom.xml`, add the GitHub Packages repository and the SDK dependency.
+In your plugin project's `pom.xml`, add the GitHub Pages Maven repository.
 
 ```xml
 <repositories>
   <repository>
-    <id>github-tlm-sdk</id>
-    <url>https://maven.pkg.github.com/digicert/tlm-plugins-sdk-dist</url>
+    <id>tlm-plugins-sdk</id>
+    <url>https://digicert.github.io/tlm-plugins-sdk-dist/</url>
   </repository>
 </repositories>
+```
 
+### 2. Add the SDK dependency
+
+Declare the SDK using its published Maven coordinates.
+
+```xml
 <dependencies>
   <dependency>
-    <groupId>com.digicert.tlm.plugins</groupId>
-    <artifactId>tlm-plugins-sdk</artifactId>
-    <version>REPLACE_WITH_LATEST</version>
+    <groupId>com.digicert.tlm</groupId>
+    <artifactId>plugin-sdk</artifactId>
+    <version>1.1</version>
   </dependency>
 </dependencies>
 ```
 
-> **Authoritative coordinates:** the exact `groupId`, `artifactId`, and available
-> `version` values are published on this repository's **[Packages](https://github.com/digicert/tlm-plugins-sdk-dist/packages)**
-> tab. Always pin to a specific released version rather than a snapshot. The example
+Then resolve it as usual (`mvn dependency:resolve` or any build that triggers dependency
+resolution).
+
+> **Available versions** are listed in the repository's Maven metadata:
+> [`com/digicert/tlm/plugin-sdk/maven-metadata.xml`](https://digicert.github.io/tlm-plugins-sdk-dist/com/digicert/tlm/plugin-sdk/maven-metadata.xml).
+> Always pin to a specific released version so plugin builds stay reproducible. The example
 > projects already reference the correct coordinates — the fastest path is to start from one.
 
 ---
@@ -175,8 +153,8 @@ The example projects are Maven projects that bundle a build script. From the pro
 ./build.sh
 ```
 
-The build compiles your plugin, resolves the SDK from GitHub Packages, and produces a
-distributable archive in the **`plugin-dist/`** subdirectory. The archive contains:
+The build compiles your plugin, resolves the SDK from the GitHub Pages Maven repository, and
+produces a distributable archive in the **`plugin-dist/`** subdirectory. The archive contains:
 
 - the plugin **JAR**,
 - the **metadata JSON** required by Trust Lifecycle Manager, and
@@ -215,9 +193,10 @@ then build and upload as described above.
 
 ## Versioning
 
-- SDK artifacts follow **semantic versioning** (`MAJOR.MINOR.PATCH`).
-- Released versions are listed on the **[Packages](https://github.com/digicert/tlm-plugins-sdk-dist/packages)**
-  tab; always depend on a fixed released version.
+- SDK artifacts follow **semantic versioning**.
+- Released versions are listed in the repository's Maven metadata:
+  [`maven-metadata.xml`](https://digicert.github.io/tlm-plugins-sdk-dist/com/digicert/tlm/plugin-sdk/maven-metadata.xml);
+  always depend on a fixed released version.
 - Pin the SDK version in your `pom.xml` so plugin builds stay reproducible.
 
 ---
