@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.digicert.tlm</groupId>
+    <artifactId>plugin-sdk</artifactId>
+    <version>1.2</version>
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!--
+          BouncyCastle provider coordinates for CryptoPolicy. Defaults to the standard
+          (non-FIPS) module; the `fips` profile below swaps these for the FIPS module.
+          Declared at `provided` scope (see dependencies) so the published plugin-sdk
+          artifact stays crypto-neutral: each consuming plugin bundles the BouncyCastle
+          jar matching the stream it builds, and CryptoPolicy binds to whatever is present.
+        -->
+        <bc.prov.groupId>org.bouncycastle</bc.prov.groupId>
+        <bc.prov.artifactId>bcprov-jdk18on</bc.prov.artifactId>
+        <bc.prov.version>1.78.1</bc.prov.version>
+
+        <junit.version>5.10.2</junit.version>
+        <surefire.version>3.2.5</surefire.version>
+    </properties>
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/digicert/tlm-plugins-sdk-dist</url>
+        </repository>
+    </distributionManagement>
+    <dependencies>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.36</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.18.2</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>2.18.6</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>2.18.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.16</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>33.4.0-jre</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.18.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.konghq</groupId>
+            <artifactId>unirest-java</artifactId>
+            <version>3.14.5</version>
+        </dependency>
+
+        <!--
+          BouncyCastle provider for CryptoPolicy. `provided` scope: available for the SDK's
+          own compilation and tests, but NOT exported transitively, so consumers choose and
+          bundle their own variant (bcprov-jdk18on for non-FIPS, bc-fips for FIPS). The `fips`
+          profile overrides the coordinates above to the FIPS module.
+        -->
+        <dependency>
+            <groupId>${bc.prov.groupId}</groupId>
+            <artifactId>${bc.prov.artifactId}</artifactId>
+            <version>${bc.prov.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.spotify.fmt</groupId>
+                <artifactId>fmt-maven-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                    <sourceDirectory>${project.basedir}/src/main/java</sourceDirectory>
+                    <style>aosp</style>
+                    <filesNamePattern>.*\.java</filesNamePattern>
+                    <verbose>true</verbose>
+                    <skipSortingImports>true</skipSortingImports>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>format</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.7.1</version>
+                <executions>
+                    <execution>
+                        <id>zip-all</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>${project.basedir}/zip.xml</descriptor>
+                            </descriptors>
+                            <appendAssemblyId>false</appendAssemblyId>
+                            <ignoreMissingDescriptor>true</ignoreMissingDescriptor>
+                            <outputDirectory>${project.basedir}/plugin-dist</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>versions-maven-plugin</artifactId>
+                <version>2.18.0</version>
+                <configuration>
+                    <ignoredDependencies>
+                        <ignoredDependency>
+                            <groupId>jakarta.xml.bind</groupId>
+                            <artifactId>jakarta.xml.bind-api</artifactId>
+                        </ignoredDependency>
+                    </ignoredDependencies>
+                </configuration>
+            </plugin>
+            <!-- Pinned so JUnit 5 (junit-jupiter) is picked up deterministically across
+                 Maven versions. The `fips` profile layers system properties on top of this
+                 same plugin so CryptoPolicyTest runs in FIPS approved-only mode. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire.version}</version>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!--
+          Builds the FIPS stream of the SDK: swaps the BouncyCastle provider from the
+          standard module to the FIPS module (bc-fips) and runs the tests in
+          approved-only mode. Consumers activate the matching profile in their own build
+          to bundle bc-fips; here it exists so CryptoPolicy is compiled and unit-tested
+          against the FIPS module as well as the standard one.
+        -->
+        <profile>
+            <id>fips</id>
+            <properties>
+                <bc.prov.groupId>org.bouncycastle</bc.prov.groupId>
+                <bc.prov.artifactId>bc-fips</bc.prov.artifactId>
+                <bc.prov.version>2.1.3</bc.prov.version>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${surefire.version}</version>
+                        <configuration>
+                            <!--
+                              The platform cannot pass JVM -D flags to the plugin process, so at
+                              runtime it sets these via plugin-meta.json env. Under test we supply
+                              them as system properties (CryptoPolicy reads env first, then
+                              system property) so the FIPS provider loads in approved-only mode.
+                            -->
+                            <systemPropertyVariables>
+                                <tlm.crypto.profile>fips</tlm.crypto.profile>
+                                <TLM_FIPS_APPROVED_ONLY>true</TLM_FIPS_APPROVED_ONLY>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+</project>
